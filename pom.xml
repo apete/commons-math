@@ -367,7 +367,19 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.commons</groupId>
+      <artifactId>commons-statistics-distribution</artifactId>
+      <version>0.1-SNAPSHOT</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
       <artifactId>commons-numbers-core</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-numbers-complex</artifactId>
       <version>1.0-SNAPSHOT</version>
     </dependency>
 
@@ -460,8 +472,8 @@
     <commons.jira.id>MATH</commons.jira.id>
     <commons.jira.pid>12310485</commons.jira.pid>
     <commons.encoding>UTF-8</commons.encoding>
-    <maven.compiler.source>1.7</maven.compiler.source>
-    <maven.compiler.target>1.7</maven.compiler.target>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
     <math.pmd.version>3.8</math.pmd.version>
     <math.findbugs.version>3.0.4</math.findbugs.version>
     <math.checkstyle.version>2.17</math.checkstyle.version>

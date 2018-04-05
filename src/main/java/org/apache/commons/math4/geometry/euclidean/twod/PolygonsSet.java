@@ -553,7 +553,7 @@ public class PolygonsSet extends AbstractRegion<Euclidean2D, Euclidean1D> {
                 setBarycenter((Point<Euclidean2D>) Cartesian2D.NaN);
             } else {
                 setSize(0);
-                setBarycenter((Point<Euclidean2D>) new Cartesian2D(0, 0));
+                setBarycenter((Point<Euclidean2D>) Cartesian2D.NaN);
             }
         } else if (v[0][0] == null) {
             // there is at least one open-loop: the polygon is infinite
@@ -644,7 +644,11 @@ public class PolygonsSet extends AbstractRegion<Euclidean2D, Euclidean1D> {
                 for (ConnectableSegment s = getUnprocessed(segments); s != null; s = getUnprocessed(segments)) {
                     final List<Segment> loop = followLoop(s);
                     if (loop != null) {
-                        if (loop.get(0).getStart() == null) {
+                        // an open loop is one that has fewer than two segments or has a null
+                        // start point; the case where we have two segments in a closed loop
+                        // (ie, an infinitely thin, degenerate loop) will result in null being
+                        // returned from the followLoops method
+                        if (loop.size() < 2 || loop.get(0).getStart() == null) {
                             // this is an open loop, we put it on the front
                             loops.add(0, loop);
                         } else {
@@ -685,9 +689,7 @@ public class PolygonsSet extends AbstractRegion<Euclidean2D, Euclidean1D> {
                             if (j < (array.length - 1)) {
                                 // current point
                                 array[j++] = segment.getEnd();
-                            }
-
-                            if (j == (array.length - 1)) {
+                            } else if (j == (array.length - 1)) {
                                 // last dummy point
                                 double x = segment.getLine().toSubSpace(segment.getStart()).getX();
                                 x += FastMath.max(1.0, FastMath.abs(x / 2));
@@ -863,16 +865,24 @@ public class PolygonsSet extends AbstractRegion<Euclidean2D, Euclidean1D> {
      * @param loop segments loop to filter (will be modified in-place)
      */
     private void filterSpuriousVertices(final List<Segment> loop) {
-        for (int i = 0; i < loop.size(); ++i) {
-            final Segment previous = loop.get(i);
-            int j = (i + 1) % loop.size();
-            final Segment next = loop.get(j);
-            if (next != null &&
-                Precision.equals(previous.getLine().getAngle(), next.getLine().getAngle(), Precision.EPSILON)) {
-                // the vertex between the two edges is a spurious one
-                // replace the two segments by a single one
-                loop.set(j, new Segment(previous.getStart(), next.getEnd(), previous.getLine()));
-                loop.remove(i--);
+        // we need at least 2 segments in order for one of the contained vertices
+        // to be unnecessary
+        if (loop.size() > 1) {
+            // Go through the list and compare each segment with the next
+            // one in line. We can remove the shared vertex if the segments
+            // are not infinite and they lie on the same line.
+            for (int i = 0; i < loop.size(); ++i) {
+                final Segment previous = loop.get(i);
+                int j = (i + 1) % loop.size();
+                final Segment next = loop.get(j);
+                if (next != null &&
+                    previous.getStart() != null && next.getEnd() != null &&
+                    Precision.equals(previous.getLine().getAngle(), next.getLine().getAngle(), Precision.EPSILON)) {
+                    // the vertex between the two edges is a spurious one
+                    // replace the two segments by a single one
+                    loop.set(j, new Segment(previous.getStart(), next.getEnd(), previous.getLine()));
+                    loop.remove(i--);
+                }
             }
         }
     }
@@ -1067,23 +1077,26 @@ public class PolygonsSet extends AbstractRegion<Euclidean2D, Euclidean1D> {
         /** Select the node whose cut sub-hyperplane is closest to specified point.
          * @param point reference point
          * @param candidates candidate nodes
-         * @return node closest to point, or null if no node is closer than tolerance
+         * @return node closest to point, or null if point is null or no node is closer than tolerance
          */
         private BSPTree<Euclidean2D> selectClosest(final Cartesian2D point, final Iterable<BSPTree<Euclidean2D>> candidates) {
+            if (point != null) {
+                BSPTree<Euclidean2D> selected = null;
+                double min = Double.POSITIVE_INFINITY;
 
-            BSPTree<Euclidean2D> selected = null;
-            double min = Double.POSITIVE_INFINITY;
+                for (final BSPTree<Euclidean2D> node : candidates) {
+                    final double distance = FastMath.abs(node.getCut().getHyperplane().getOffset(point));
+                    if (distance < min) {
+                        selected = node;
+                        min      = distance;
+                    }
+                }
 
-            for (final BSPTree<Euclidean2D> node : candidates) {
-                final double distance = FastMath.abs(node.getCut().getHyperplane().getOffset(point));
-                if (distance < min) {
-                    selected = node;
-                    min      = distance;
+                if (min <= tolerance) {
+                    return selected;
                 }
             }
-
-            return min <= tolerance ? selected : null;
-
+            return null;
         }
 
         /** Get the segments.
